@@ -1,0 +1,36 @@
+{
+  "ClusterName": "eventflow-msk",
+  "KafkaVersion": "REPLACE_WITH_SUPPORTED_VERSION",
+  "NumberOfBrokerNodes": 2,
+  "BrokerNodeGroupInfo": {
+    "InstanceType": "kafka.m5.large",
+    "ClientSubnets": [
+      "SUBNET_A",
+      "SUBNET_B"
+    ],
+    "SecurityGroups": [
+      "BROKER_SG_ID"
+    ],
+    "StorageInfo": {
+      "EBSStorageInfo": {
+        "VolumeSize": 100
+      }
+    }
+  },
+  "EncryptionInfo": {
+    "EncryptionInTransit": {
+      "ClientBroker": "TLS",
+      "InCluster": true
+    }
+  },
+  "ClientAuthentication": {
+    "Sasl": {
+      "Iam": {
+        "Enabled": true
+      }
+    },
+    "Unauthenticated": {
+      "Enabled": false
+    }
+  }
+}

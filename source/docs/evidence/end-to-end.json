@@ -1,0 +1,58 @@
+{
+  "date": "2026-11-04",
+  "brokerMode": "LocalStack MSK",
+  "runs": [
+    {
+      "runId": "R-1793846340361-6666",
+      "level": "POOL",
+      "accountingDate": "2026-11-04",
+      "status": "COMMITTED",
+      "loans": 100,
+      "published": 100,
+      "BE": 900,
+      "AR": 900,
+      "loanApplicationItems": 300,
+      "balancedAR": 900
+    },
+    {
+      "runId": "R-1793846861986-62fc",
+      "level": "LOAN",
+      "accountingDate": "2026-11-04",
+      "status": "COMMITTED",
+      "loans": 100,
+      "published": 100,
+      "BE": 900,
+      "AR": 900,
+      "loanApplicationItems": 300,
+      "balancedAR": 900
+    }
+  ],
+  "workflows": [
+    {
+      "batchId": "B-00d1f485-732",
+      "workflow": "SUCCEEDED",
+      "activityFailures": 0,
+      "activityTimeouts": 0
+    },
+    {
+      "batchId": "B-84e627a5-dc1",
+      "workflow": "SUCCEEDED",
+      "activityFailures": 0,
+      "activityTimeouts": 1
+    }
+  ],
+  "kafka": {
+    "eventflow.enriched-loans": {
+      "lag": 0,
+      "messages": 101,
+      "unit": "loan envelopes",
+      "partitions": 6
+    },
+    "eventflow.business-events": {
+      "lag": 0,
+      "messages": 101,
+      "unit": "business events",
+      "partitions": 6
+    }
+  }
+}

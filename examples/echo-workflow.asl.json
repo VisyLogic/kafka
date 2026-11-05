@@ -1,0 +1,11 @@
+{
+  "StartAt": "Echo",
+  "States": {
+    "Echo": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:us-east-1:ACCOUNT_ID:activity:eventflow-lab-echo",
+      "TimeoutSeconds": 300,
+      "End": true
+    }
+  }
+}

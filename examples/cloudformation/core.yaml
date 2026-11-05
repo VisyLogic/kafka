@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EventFlow - durable event buffer, data store, checkpoints and pool/loan workflows
+Parameters:
+  ArtifactBucketName: {Type: String, Default: eventflow-artifacts-local}
+Resources:
+  IngressDLQ:
+    Type: AWS::SQS::Queue
+    Properties: {QueueName: eventflow-ingress-dlq, MessageRetentionPeriod: 1209600}
+  IngressQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: eventflow-ingress
+      VisibilityTimeout: 120
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy: {deadLetterTargetArn: !GetAtt IngressDLQ.Arn, maxReceiveCount: 5}
+  Data:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: eventflow-data
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: pk, AttributeType: S}
+        - {AttributeName: sk, AttributeType: S}
+      KeySchema:
+        - {AttributeName: pk, KeyType: HASH}
+        - {AttributeName: sk, KeyType: RANGE}
+      SSESpecification: {SSEEnabled: true}
+      PointInTimeRecoverySpecification: {PointInTimeRecoveryEnabled: true}
+  Artifacts:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref ArtifactBucketName
+      VersioningConfiguration: {Status: Enabled}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}
+      PublicAccessBlockConfiguration: {BlockPublicAcls: true, BlockPublicPolicy: true, IgnorePublicAcls: true, RestrictPublicBuckets: true}
+  SourcePool:
+    Type: AWS::StepFunctions::Activity
+    Properties: {Name: eventflow-source-pool}
+  SourceLoan:
+    Type: AWS::StepFunctions::Activity
+    Properties: {Name: eventflow-source-loan}
+  AwaitAccounting:
+    Type: AWS::StepFunctions::Activity
+    Properties: {Name: eventflow-await-accounting}
+  WorkflowRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: states.amazonaws.com}
+            Action: sts:AssumeRole
+  PoolWorkflow:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: eventflow-pool
+      StateMachineType: STANDARD
+      RoleArn: !GetAtt WorkflowRole.Arn
+      Definition:
+        StartAt: SourceEnrichedPoolLoans
+        States:
+          SourceEnrichedPoolLoans:
+            Type: Task
+            Resource: !Ref SourcePool
+            TimeoutSeconds: 86400
+            HeartbeatSeconds: 60
+            Retry:
+              - {ErrorEquals: [States.TaskFailed, States.Timeout], IntervalSeconds: 3, MaxAttempts: 2, BackoffRate: 2}
+            Next: AwaitAccountingResults
+          AwaitAccountingResults:
+            Type: Task
+            Resource: !Ref AwaitAccounting
+            TimeoutSeconds: 86400
+            HeartbeatSeconds: 60
+            Retry:
+              - {ErrorEquals: [States.TaskFailed, States.Timeout], IntervalSeconds: 3, MaxAttempts: 2, BackoffRate: 2}
+            End: true
+  LoanWorkflow:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: eventflow-loan
+      StateMachineType: STANDARD
+      RoleArn: !GetAtt WorkflowRole.Arn
+      Definition:
+        StartAt: SourceEnrichedLoan
+        States:
+          SourceEnrichedLoan:
+            Type: Task
+            Resource: !Ref SourceLoan
+            TimeoutSeconds: 86400
+            HeartbeatSeconds: 60
+            Retry:
+              - {ErrorEquals: [States.TaskFailed, States.Timeout], IntervalSeconds: 3, MaxAttempts: 2, BackoffRate: 2}
+            Next: AwaitAccountingResults
+          AwaitAccountingResults:
+            Type: Task
+            Resource: !Ref AwaitAccounting
+            TimeoutSeconds: 86400
+            HeartbeatSeconds: 60
+            Retry:
+              - {ErrorEquals: [States.TaskFailed, States.Timeout], IntervalSeconds: 3, MaxAttempts: 2, BackoffRate: 2}
+            End: true
+Outputs:
+  QueueUrl: {Value: !Ref IngressQueue}
+  TableName: {Value: !Ref Data}
+  ArtifactBucket: {Value: !Ref Artifacts}
+  PoolWorkflowArn: {Value: !Ref PoolWorkflow}
+  LoanWorkflowArn: {Value: !Ref LoanWorkflow}

@@ -1,0 +1,143 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>19 · Infrastructure as code and enterprise delivery · EventFlow learning</title><link rel="stylesheet" href="assets/course.css"></head><body><aside><div class="brand">Event<span>Flow</span><small>BUILD • UNDERSTAND • OPERATE</small></div><div class="offline">OFFLINE READY · no CDN or server required</div><input id="search" class="search" aria-label="Search lessons" placeholder="Find a lesson…"><nav><a class="" href="index.html">Start · component inventory</a><a class="" href="diagram.html">Architecture and working relationships</a><a class="" href="kafka.html">Kafka · step-by-step learning track</a><a class="" href="01-foundations.html">01 · Workstation, account and learning path</a><a class="" href="02-iam.html">02 · IAM roles, permissions and pod identity</a><a class="" href="03-network.html">03 · VPC, subnets, routes and security groups</a><a class="" href="04-s3.html">04 · S3 buckets, request files and source checkpoints</a><a class="" href="05-dynamodb.html">05 · DynamoDB keys, transactions and accounting state</a><a class="" href="06-sqs.html">06 · SQS buffering, visibility and the ingress DLQ</a><a class="" href="07-msk.html">07 · Amazon MSK and the two Kafka topics</a><a class="" href="08-workflows.html">08 · Step Functions and Java Activity workers</a><a class="" href="09-java-grpc.html">09 · Java modules, mock gRPC and financial rules</a><a class="" href="10-docker-localstack.html">10 · Docker and LocalStack: the complete local lab</a><a class="" href="11-ecr.html">11 · ECR: build once and promote an immutable image</a><a class="" href="12-eks.html">12 · EKS cluster, managed nodes and private services</a><a class="" href="13-pods.html">13 · Pod identity, configuration and service-by-service rollout</a><a class="" href="14-ides.html">14 · IntelliJ IDEA and VS Code: read, test, debug, deploy</a><a class="" href="15-file-trigger.html">15 · GUI and S3 file trigger: your application entry point</a><a class="" href="16-capstone.html">16 · Assemble the application and run the capstone</a><a class="" href="17-scaling.html">17 · Batching, Kafka lag, KEDA and node capacity</a><a class="" href="18-observability.html">18 · CloudWatch, CloudTrail and operational evidence</a><a class="current" href="19-enterprise.html">19 · Infrastructure as code and enterprise delivery</a><a class="" href="20-recovery.html">20 · Failure drills, troubleshooting and safe cleanup</a><a class="" href="21-assessment.html">21 · Readiness assessment and next engineering exercises</a><a class="" href="k01-concepts.html">K01 · Kafka from first principles</a><a class="" href="k02-local-lab.html">K02 · Start your own isolated Kafka lab</a><a class="" href="k03-first-record.html">K03 · Create a topic, publish and read records</a><a class="" href="k04-groups.html">K04 · Consumer groups, offsets and parallelism</a><a class="" href="k05-java.html">K05 · Read and debug the Java producer and consumer</a><a class="" href="k06-batching.html">K06 · Batching, message size and backpressure</a><a class="" href="k07-replay.html">K07 · Replay, retries and duplicate protection</a><a class="" href="k08-contracts.html">K08 · Keys, ordering, retention and schema evolution</a><a class="" href="k09-msk-operations.html">K09 · Move from a lab broker to MSK and EKS</a><a class="" href="k10-capstone.html">K10 · End-to-end Kafka capstone and next steps</a></nav><p class="small" style="color:#bed0db">CLI examples use AWS CloudShell Bash unless labelled PowerShell. Completion marks are self-reported.</p></aside><main><header><div class="eyebrow">EVENTFLOW WITH KAFKA / HANDS-ON AWS COURSE</div><div class="actions"><a class="button" href="index.html">Component inventory</a><button onclick="window.print()">Print / PDF</button></div></header><div class="eyebrow" style="margin-top:28px">LEARN → CREATE → TEST → EXPLAIN</div><h1>19 · Infrastructure as code and enterprise delivery</h1><p class="lede">After the console labs, rebuild the environment reproducibly from reviewed CloudFormation in a separate account/region or using a deliberate import plan. Do not deploy a stack over unmanaged resources with identical names and assume CloudFormation will adopt them.</p><div class="card"><h2>When to use it</h2><ul><li>Reviewable infrastructure, predictable environment promotion, drift detection and rollback.</li><li>Build once, test, scan, sign/attest as required, and deploy the same image digest.</li><li>Use short-lived CI OIDC roles and environment approvals rather than access-key secrets.</li></ul></div><h2>Create through the AWS console / IDE</h2><ol><li>CloudFormation → Create stack: network, core and platform are separate deployment units. Review the change set and IAM changes before executing.</li><li>Record stack outputs as deployment inputs. Separate business configuration versions from image versions and infrastructure versions.</li><li>After manual learning, use separate dev/test/prod accounts, repository reviews, automated tests, scoped deployment roles and explicit production gates.</li><li>Refactor the shared teaching pod role into workload-specific roles and service accounts. Add KMS/Secrets Manager only when the actual encryption or external-credential need requires them.</li><li>Configure deletion protection/retention and backup restore exercises for financial data. Use CloudFormation drift detection to identify console changes that would otherwise disappear in the next release.</li></ol><h2>Create or inspect through CLI</h2><div class="note">Choose this as an alternative provisioning path; do not create duplicate named resources. Commands are examples for a sandbox and require replacing placeholders. CloudShell examples use Bash; Windows-specific commands are labelled.</div><div class="codehead"><span>Command / example</span><button data-copy="commands">Copy</button></div><pre id="commands"><code>aws cloudformation validate-template --template-body file://infrastructure/cloudformation/core.yaml
+aws cloudformation deploy --stack-name eventflow-core --template-file infrastructure/cloudformation/core.yaml --capabilities CAPABILITY_IAM --parameter-overrides ArtifactBucketName=YOUR_UNIQUE_BUCKET --no-execute-changeset
+aws cloudformation list-change-sets --stack-name eventflow-core
+# Review the change-set ID, then explicitly execute it.
+aws cloudformation execute-change-set --stack-name eventflow-core --change-set-name CHANGE_SET_NAME
+aws cloudformation detect-stack-drift --stack-name eventflow-core
+# Code rollout is separate:
+kubectl -n eventflow set image deployment/eventflow-activity activity=YOUR_REPOSITORY@sha256:YOUR_DIGEST
+kubectl -n eventflow rollout status deployment/eventflow-activity</code></pre><h2>Test this component before continuing</h2><p>Review a harmless change set and detect drift on a disposable lab setting. In test, deploy a known image digest and practice rollout undo. Recheck accounting invariants after rollback rather than assuming Kubernetes rollback undoes posted financial results.</p><div class="pass"><strong>Exit criterion</strong><p>An auditable release with source commit, test evidence, image digest, business-rule version and infrastructure change set. No automated AWS deployment is performed by reading this course.</p></div><h2>Follow the code</h2><p><code>infrastructure/cloudformation/platform.yaml</code></p><p><a download href="source/infrastructure/cloudformation/platform.yaml">Download this source file</a></p><details><summary>Read the actual source, offline</summary><div class="codehead"><span>Source reference</span><button data-copy="source-code">Copy</button></div><pre id="source-code"><code>AWSTemplateFormatVersion: &#x27;2010-09-09&#x27;
+Description: AWS-only EKS, private MSK, ECR and pod identity. Review costs before deployment.
+Parameters:
+  VpcId: {Type: &#x27;AWS::EC2::VPC::Id&#x27;}
+  PrivateSubnetIds: {Type: &#x27;List&lt;AWS::EC2::Subnet::Id&gt;&#x27;}
+  AdminCidr: {Type: String, Description: Your workstation public IP /32 or corporate CIDR for the EKS API}
+  AdminPrincipalArn: {Type: String, Description: IAM role ARN authorized to administer this learning cluster}
+  KubernetesVersion: {Type: String, Default: &#x27;1.34&#x27;}
+  ArtifactBucketName: {Type: String}
+Resources:
+  Images:
+    Type: AWS::ECR::Repository
+    Properties: {RepositoryName: eventflow, ImageScanningConfiguration: {ScanOnPush: true}}
+  ClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: &#x27;2012-10-17&#x27;
+        Statement: [{Effect: Allow, Principal: {Service: eks.amazonaws.com}, Action: &#x27;sts:AssumeRole&#x27;}]
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/AmazonEKSClusterPolicy]
+  Cluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: eventflow
+      Version: !Ref KubernetesVersion
+      RoleArn: !GetAtt ClusterRole.Arn
+      AccessConfig: {AuthenticationMode: API_AND_CONFIG_MAP}
+      ResourcesVpcConfig:
+        SubnetIds: !Ref PrivateSubnetIds
+        EndpointPrivateAccess: true
+        EndpointPublicAccess: true
+        PublicAccessCidrs: [!Ref AdminCidr]
+  AdminAccess:
+    Type: AWS::EKS::AccessEntry
+    Properties:
+      ClusterName: !Ref Cluster
+      PrincipalArn: !Ref AdminPrincipalArn
+      Type: STANDARD
+      AccessPolicies:
+        - PolicyArn: arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy
+          AccessScope: {Type: cluster}
+  NodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: &#x27;2012-10-17&#x27;
+        Statement: [{Effect: Allow, Principal: {Service: ec2.amazonaws.com}, Action: &#x27;sts:AssumeRole&#x27;}]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+  Nodes:
+    Type: AWS::EKS::Nodegroup
+    Properties:
+      ClusterName: !Ref Cluster
+      NodeRole: !GetAtt NodeRole.Arn
+      Subnets: !Ref PrivateSubnetIds
+      InstanceTypes: [t3.large]
+      ScalingConfig: {MinSize: 1, DesiredSize: 1, MaxSize: 3}
+  PodIdentityAgent:
+    Type: AWS::EKS::Addon
+    DependsOn: Nodes
+    Properties: {ClusterName: !Ref Cluster, AddonName: eks-pod-identity-agent}
+  BrokerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Kafka IAM over TLS only from EventFlow cluster nodes
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 9098, ToPort: 9098, SourceSecurityGroupId: !GetAtt Cluster.ClusterSecurityGroupId}
+  Brokers:
+    Type: AWS::MSK::Cluster
+    Properties:
+      ClusterName: eventflow-msk
+      KafkaVersion: 3.9.x
+      NumberOfBrokerNodes: 2
+      BrokerNodeGroupInfo:
+        InstanceType: kafka.m5.large
+        ClientSubnets: !Ref PrivateSubnetIds
+        SecurityGroups: [!Ref BrokerSecurityGroup]
+        StorageInfo: {EBSStorageInfo: {VolumeSize: 100}}
+      EncryptionInfo:
+        EncryptionInTransit: {ClientBroker: TLS, InCluster: true}
+      ClientAuthentication: {Sasl: {Iam: {Enabled: true}}, Unauthenticated: {Enabled: false}}
+  PodRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: &#x27;2012-10-17&#x27;
+        Statement:
+          - Effect: Allow
+            Principal: {Service: pods.eks.amazonaws.com}
+            Action: [&#x27;sts:AssumeRole&#x27;, &#x27;sts:TagSession&#x27;]
+      Policies:
+        - PolicyName: EventFlowApplicationResources
+          PolicyDocument:
+            Version: &#x27;2012-10-17&#x27;
+            Statement:
+              - Effect: Allow
+                Action: [&#x27;kafka-cluster:Connect&#x27;, &#x27;kafka-cluster:DescribeCluster&#x27;, &#x27;kafka-cluster:WriteDataIdempotently&#x27;]
+                Resource: !Ref Brokers
+              - Effect: Allow
+                Action: [&#x27;kafka-cluster:CreateTopic&#x27;, &#x27;kafka-cluster:DescribeTopic&#x27;, &#x27;kafka-cluster:AlterTopic&#x27;, &#x27;kafka-cluster:ReadData&#x27;, &#x27;kafka-cluster:WriteData&#x27;]
+                Resource: !Sub arn:aws:kafka:${AWS::Region}:${AWS::AccountId}:topic/eventflow-msk/*/eventflow.*
+              - Effect: Allow
+                Action: [&#x27;kafka-cluster:DescribeGroup&#x27;, &#x27;kafka-cluster:AlterGroup&#x27;]
+                Resource: !Sub arn:aws:kafka:${AWS::Region}:${AWS::AccountId}:group/eventflow-msk/*/eventflow-*
+              - Effect: Allow
+                Action: [&#x27;dynamodb:GetItem&#x27;, &#x27;dynamodb:PutItem&#x27;, &#x27;dynamodb:UpdateItem&#x27;, &#x27;dynamodb:Query&#x27;, &#x27;dynamodb:TransactWriteItems&#x27;]
+                Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/eventflow-data
+              - Effect: Allow
+                Action: [&#x27;sqs:GetQueueUrl&#x27;, &#x27;sqs:SendMessage&#x27;, &#x27;sqs:ReceiveMessage&#x27;, &#x27;sqs:DeleteMessage&#x27;, &#x27;sqs:ChangeMessageVisibility&#x27;]
+                Resource: !Sub arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:eventflow-ingress
+              - Effect: Allow
+                Action: [&#x27;s3:GetObject&#x27;, &#x27;s3:PutObject&#x27;]
+                Resource: !Sub arn:aws:s3:::${ArtifactBucketName}/*
+              - Effect: Allow
+                Action: [&#x27;states:StartExecution&#x27;, &#x27;states:DescribeExecution&#x27;, &#x27;states:GetExecutionHistory&#x27;, &#x27;states:GetActivityTask&#x27;]
+                Resource:
+                  - !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:eventflow-*
+                  - !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:eventflow-*:*
+                  - !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:activity:eventflow-*
+              - Effect: Allow
+                Action: [&#x27;states:SendTaskSuccess&#x27;, &#x27;states:SendTaskFailure&#x27;, &#x27;states:SendTaskHeartbeat&#x27;]
+                Resource: &#x27;*&#x27;
+  AppIdentity:
+    Type: AWS::EKS::PodIdentityAssociation
+    DependsOn: PodIdentityAgent
+    Properties: {ClusterName: !Ref Cluster, Namespace: eventflow, ServiceAccount: eventflow, RoleArn: !GetAtt PodRole.Arn}
+Outputs:
+  ClusterName: {Value: !Ref Cluster}
+  BrokerArn: {Value: !Ref Brokers}
+  ImageRepository: {Value: !GetAtt Images.RepositoryUri}
+  PodRoleArn: {Value: !GetAtt PodRole.Arn}
+</code></pre></details><h2>Explain and investigate</h2><p>A bad calculation was deployed and posted. Why is rolling back the container insufficient? Design an explicit reversal/rebook process rather than editing historical results.</p><details><summary>What to record in your lab notebook</summary><ul><li>Account/region, resource IDs and chosen provisioning method.</li><li>Relevant configuration and why you chose it.</li><li>The command/test and the observed result, including failures.</li><li>Recovery action and how you checked the business invariants.</li><li>Known gaps and the next experiment; exclude secrets and task tokens.</li></ul></details><label class="complete"><input type="checkbox" data-complete="19-enterprise"> I performed this lab and can explain the exit criterion (self-reported).</label><h2>Official reference</h2><p><a href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html" target="_blank" rel="noopener">https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html</a></p><p class="small">External references need internet; the lesson content and source download do not.</p><div class="pager"><a href="18-observability.html">← Previous lesson</a><a href="20-recovery.html">Next lesson →</a></div><footer>Course source revision: 2026-11-04. Console wording and supported service versions can change; official references are provided for verification. LocalStack evidence is distinct from AWS deployment evidence. No cloud resources are created by opening this file.</footer></main><script src="assets/course.js"></script></body></html>

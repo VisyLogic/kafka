@@ -1,0 +1,19 @@
+{
+  "name": "eventflow",
+  "version": "REPLACE_WITH_SUPPORTED_VERSION",
+  "roleArn": "arn:aws:iam::ACCOUNT_ID:role/EventFlowClusterRole",
+  "accessConfig": {
+    "authenticationMode": "API_AND_CONFIG_MAP"
+  },
+  "resourcesVpcConfig": {
+    "subnetIds": [
+      "SUBNET_A",
+      "SUBNET_B"
+    ],
+    "endpointPrivateAccess": true,
+    "endpointPublicAccess": true,
+    "publicAccessCidrs": [
+      "YOUR_ADMIN_IP/32"
+    ]
+  }
+}

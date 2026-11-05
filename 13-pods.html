@@ -1,0 +1,136 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>13 · Pod identity, configuration and service-by-service rollout · EventFlow learning</title><link rel="stylesheet" href="assets/course.css"></head><body><aside><div class="brand">Event<span>Flow</span><small>BUILD • UNDERSTAND • OPERATE</small></div><div class="offline">OFFLINE READY · no CDN or server required</div><input id="search" class="search" aria-label="Search lessons" placeholder="Find a lesson…"><nav><a class="" href="index.html">Start · component inventory</a><a class="" href="diagram.html">Architecture and working relationships</a><a class="" href="kafka.html">Kafka · step-by-step learning track</a><a class="" href="01-foundations.html">01 · Workstation, account and learning path</a><a class="" href="02-iam.html">02 · IAM roles, permissions and pod identity</a><a class="" href="03-network.html">03 · VPC, subnets, routes and security groups</a><a class="" href="04-s3.html">04 · S3 buckets, request files and source checkpoints</a><a class="" href="05-dynamodb.html">05 · DynamoDB keys, transactions and accounting state</a><a class="" href="06-sqs.html">06 · SQS buffering, visibility and the ingress DLQ</a><a class="" href="07-msk.html">07 · Amazon MSK and the two Kafka topics</a><a class="" href="08-workflows.html">08 · Step Functions and Java Activity workers</a><a class="" href="09-java-grpc.html">09 · Java modules, mock gRPC and financial rules</a><a class="" href="10-docker-localstack.html">10 · Docker and LocalStack: the complete local lab</a><a class="" href="11-ecr.html">11 · ECR: build once and promote an immutable image</a><a class="" href="12-eks.html">12 · EKS cluster, managed nodes and private services</a><a class="current" href="13-pods.html">13 · Pod identity, configuration and service-by-service rollout</a><a class="" href="14-ides.html">14 · IntelliJ IDEA and VS Code: read, test, debug, deploy</a><a class="" href="15-file-trigger.html">15 · GUI and S3 file trigger: your application entry point</a><a class="" href="16-capstone.html">16 · Assemble the application and run the capstone</a><a class="" href="17-scaling.html">17 · Batching, Kafka lag, KEDA and node capacity</a><a class="" href="18-observability.html">18 · CloudWatch, CloudTrail and operational evidence</a><a class="" href="19-enterprise.html">19 · Infrastructure as code and enterprise delivery</a><a class="" href="20-recovery.html">20 · Failure drills, troubleshooting and safe cleanup</a><a class="" href="21-assessment.html">21 · Readiness assessment and next engineering exercises</a><a class="" href="k01-concepts.html">K01 · Kafka from first principles</a><a class="" href="k02-local-lab.html">K02 · Start your own isolated Kafka lab</a><a class="" href="k03-first-record.html">K03 · Create a topic, publish and read records</a><a class="" href="k04-groups.html">K04 · Consumer groups, offsets and parallelism</a><a class="" href="k05-java.html">K05 · Read and debug the Java producer and consumer</a><a class="" href="k06-batching.html">K06 · Batching, message size and backpressure</a><a class="" href="k07-replay.html">K07 · Replay, retries and duplicate protection</a><a class="" href="k08-contracts.html">K08 · Keys, ordering, retention and schema evolution</a><a class="" href="k09-msk-operations.html">K09 · Move from a lab broker to MSK and EKS</a><a class="" href="k10-capstone.html">K10 · End-to-end Kafka capstone and next steps</a></nav><p class="small" style="color:#bed0db">CLI examples use AWS CloudShell Bash unless labelled PowerShell. Completion marks are self-reported.</p></aside><main><header><div class="eyebrow">EVENTFLOW WITH KAFKA / HANDS-ON AWS COURSE</div><div class="actions"><a class="button" href="index.html">Component inventory</a><button onclick="window.print()">Print / PDF</button></div></header><div class="eyebrow" style="margin-top:28px">LEARN → CREATE → TEST → EXPLAIN</div><h1>13 · Pod identity, configuration and service-by-service rollout</h1><p class="lede">The image is generic; environment configuration selects AWS endpoints, broker security and SERVICE_ROLE. LocalStack uses dummy local credentials only with an explicit local endpoint. AWS uses the default credential chain and EKS Pod Identity. Separate business configuration from connection and release configuration.</p><div class="card"><h2>When to use it</h2><ul><li>Workload credentials without stored access keys.</li><li>Declarative rollouts, readiness probes, resource limits and stable discovery.</li><li>The teaching manifests use one service account; the enterprise hardening lab assigns one role/service account per workload.</li></ul></div><h2>Create through the AWS console / IDE</h2><ol><li>EKS → cluster → Add-ons → Get more add-ons → EKS Pod Identity Agent. Install it and verify its daemon pods are healthy.</li><li>EKS → Access → Pod Identity associations → Create. Associate namespace eventflow and service account eventflow with EventFlowApplicationRole.</li><li>Copy workloads.yaml to a deployment-specific file. Replace all image references with the ECR digest. Set AWS_ENDPOINT_URL empty, the real account/region/bucket, IAM brokers, SASL_SSL and AWS_MSK_IAM.</li><li>Create namespace/config/service account, then deploy mock-source first, followed by activity, sourcing, adapter, and finally console. The console owns the single coordinator.</li><li>Keep the console Service private and use kubectl port-forward for learning. Add authentication before considering a public endpoint.</li></ol><h2>Create or inspect through CLI</h2><div class="note">Choose this as an alternative provisioning path; do not create duplicate named resources. Commands are examples for a sandbox and require replacing placeholders. CloudShell examples use Bash; Windows-specific commands are labelled.</div><div class="codehead"><span>Command / example</span><button data-copy="commands">Copy</button></div><pre id="commands"><code>aws eks create-addon --cluster-name eventflow --addon-name eks-pod-identity-agent
+aws eks create-pod-identity-association --cluster-name eventflow --namespace eventflow --service-account eventflow --role-arn APPLICATION_ROLE_ARN
+# After replacing all deployment-specific values:
+kubectl apply -f YOUR_CONFIGURED_WORKLOADS.yaml
+kubectl -n eventflow rollout status deployment/eventflow-mock-source
+kubectl -n eventflow rollout status deployment/eventflow-activity
+kubectl -n eventflow get pods
+kubectl -n eventflow logs deployment/eventflow-sourcing --tail=30
+kubectl -n eventflow port-forward service/eventflow-console 8095:8095</code></pre><h2>Test this component before continuing</h2><p>Use logs to confirm each role starts, then run KafkaProbe inside the console pod. Verify configuration was seeded in DynamoDB using seed-aws.py before startup. Check that no AWS_ACCESS_KEY_ID/SECRET_ACCESS_KEY is present in the pod spec.</p><div class="pass"><strong>Exit criterion</strong><p>Ready Java roles, private discovery of eventflow-mock-source:9095, successful SDK calls through pod identity, and a console reached only through the local port-forward.</p></div><h2>Follow the code</h2><p><code>infrastructure/kubernetes/workloads.yaml</code></p><p><a download href="source/infrastructure/kubernetes/workloads.yaml">Download this source file</a></p><details><summary>Read the actual source, offline</summary><div class="codehead"><span>Source reference</span><button data-copy="source-code">Copy</button></div><pre id="source-code"><code># Apply after replacing image and configuring the ConfigMap for local Kubernetes or AWS.
+apiVersion: v1
+kind: Namespace
+metadata: {name: eventflow}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: eventflow, namespace: eventflow}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: eventflow, namespace: eventflow}
+data:
+  AWS_ENDPOINT_URL: http://host.docker.internal:4570
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: &#x27;000000000000&#x27;
+  TABLE_NAME: eventflow-data
+  BUCKET_NAME: eventflow-artifacts-local
+  GRPC_TARGET: eventflow-mock-source:9095
+  KAFKA_BOOTSTRAP_SERVERS: REPLACE_WITH_REACHABLE_BROKERS
+  KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+  KAFKA_REPLICATION_FACTOR: &#x27;1&#x27;
+  MAX_TEST_LOANS: &#x27;100000&#x27;
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: eventflow-console, namespace: eventflow}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: eventflow-console}}
+  template:
+    metadata: {labels: {app: eventflow-console}}
+    spec:
+      serviceAccountName: eventflow
+      containers:
+        - name: console
+          image: eventflow-java:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom: [{configMapRef: {name: eventflow}}]
+          env: [{name: SERVICE_ROLE, value: console}]
+          ports: [{containerPort: 8095}]
+          readinessProbe: {httpGet: {path: /api/health, port: 8095}, initialDelaySeconds: 15, periodSeconds: 5}
+          resources: {requests: {cpu: 100m, memory: 192Mi}, limits: {cpu: &#x27;1&#x27;, memory: 384Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: eventflow-console, namespace: eventflow}
+spec: {selector: {app: eventflow-console}, ports: [{port: 8095, targetPort: 8095}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: eventflow-adapter, namespace: eventflow}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: eventflow-adapter}}
+  template:
+    metadata: {labels: {app: eventflow-adapter}}
+    spec:
+      serviceAccountName: eventflow
+      containers:
+        - name: adapter
+          image: eventflow-java:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom: [{configMapRef: {name: eventflow}}]
+          env: [{name: SERVICE_ROLE, value: adapter}]
+          resources: {requests: {cpu: 100m, memory: 192Mi}, limits: {cpu: &#x27;1&#x27;, memory: 384Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: eventflow-sourcing, namespace: eventflow}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: eventflow-sourcing}}
+  template:
+    metadata: {labels: {app: eventflow-sourcing}}
+    spec:
+      serviceAccountName: eventflow
+      terminationGracePeriodSeconds: 90
+      containers:
+        - name: sourcing
+          image: eventflow-java:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom: [{configMapRef: {name: eventflow}}]
+          env: [{name: SERVICE_ROLE, value: sourcing}]
+          resources: {requests: {cpu: 100m, memory: 192Mi}, limits: {cpu: &#x27;1&#x27;, memory: 384Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: eventflow-activity, namespace: eventflow}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: eventflow-activity}}
+  template:
+    metadata: {labels: {app: eventflow-activity}}
+    spec:
+      serviceAccountName: eventflow
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: activity
+          image: eventflow-java:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom: [{configMapRef: {name: eventflow}}]
+          env: [{name: SERVICE_ROLE, value: activity}]
+          resources: {requests: {cpu: 100m, memory: 192Mi}, limits: {cpu: &#x27;1&#x27;, memory: 384Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: eventflow-mock-source, namespace: eventflow}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: eventflow-mock-source}}
+  template:
+    metadata: {labels: {app: eventflow-mock-source}}
+    spec:
+      serviceAccountName: eventflow
+      containers:
+        - name: mock
+          image: eventflow-java:1.0.0
+          imagePullPolicy: IfNotPresent
+          env: [{name: SERVICE_ROLE, value: mock-source}]
+          ports: [{containerPort: 9095}]
+          resources: {requests: {cpu: 100m, memory: 192Mi}, limits: {cpu: &#x27;1&#x27;, memory: 384Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: eventflow-mock-source, namespace: eventflow}
+spec: {selector: {app: eventflow-mock-source}, ports: [{port: 9095, targetPort: 9095}]}
+</code></pre></details><h2>Explain and investigate</h2><p>Why must the KEDA operator receive its own Kafka permissions instead of inheriting the activity pod’s identity?</p><details><summary>What to record in your lab notebook</summary><ul><li>Account/region, resource IDs and chosen provisioning method.</li><li>Relevant configuration and why you chose it.</li><li>The command/test and the observed result, including failures.</li><li>Recovery action and how you checked the business invariants.</li><li>Known gaps and the next experiment; exclude secrets and task tokens.</li></ul></details><label class="complete"><input type="checkbox" data-complete="13-pods"> I performed this lab and can explain the exit criterion (self-reported).</label><h2>Official reference</h2><p><a href="https://docs.aws.amazon.com/eks/latest/userguide/pod-id-association.html" target="_blank" rel="noopener">https://docs.aws.amazon.com/eks/latest/userguide/pod-id-association.html</a></p><p class="small">External references need internet; the lesson content and source download do not.</p><div class="pager"><a href="12-eks.html">← Previous lesson</a><a href="14-ides.html">Next lesson →</a></div><footer>Course source revision: 2026-11-04. Console wording and supported service versions can change; official references are provided for verification. LocalStack evidence is distinct from AWS deployment evidence. No cloud resources are created by opening this file.</footer></main><script src="assets/course.js"></script></body></html>

@@ -1,0 +1,1 @@
+Open index.html directly in your browser. Keep the whole folder together. All lessons, diagrams, CSS and JavaScript are local. External AWS references and live exercises require internet/services. No cloud actions run automatically.

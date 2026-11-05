@@ -1,0 +1,21 @@
+# Requires KEDA installed first. This is real Kubernetes scaling configuration, not Compose simulation.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata: {name: eventflow-activity, namespace: eventflow}
+spec:
+  scaleTargetRef: {name: eventflow-activity}
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  pollingInterval: 15
+  cooldownPeriod: 60
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: REPLACE_WITH_REACHABLE_BROKERS
+        consumerGroup: eventflow-activity
+        topic: eventflow.enriched-loans
+        lagThreshold: '10'
+        offsetResetPolicy: earliest
+        allowIdleConsumers: 'false'
+# For AWS MSK TLS, add authenticationRef and a TriggerAuthentication specifying tls=enable.
+# Kafka lag counts envelopes, not loans. Six partitions limit useful concurrent consumers to six.

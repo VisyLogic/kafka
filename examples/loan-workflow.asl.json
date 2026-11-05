@@ -1,0 +1,41 @@
+{
+  "StartAt": "SourceEnrichedLoan",
+  "States": {
+    "SourceEnrichedLoan": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:us-east-1:ACCOUNT_ID:activity:eventflow-source-loan",
+      "HeartbeatSeconds": 60,
+      "TimeoutSeconds": 86400,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.TaskFailed",
+            "States.Timeout"
+          ],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "AwaitAccounting"
+    },
+    "AwaitAccounting": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:us-east-1:ACCOUNT_ID:activity:eventflow-await-accounting",
+      "HeartbeatSeconds": 60,
+      "TimeoutSeconds": 86400,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.TaskFailed",
+            "States.Timeout"
+          ],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "End": true
+    }
+  }
+}

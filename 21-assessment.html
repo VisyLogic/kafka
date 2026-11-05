@@ -1,0 +1,63 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>21 · Readiness assessment and next engineering exercises · EventFlow learning</title><link rel="stylesheet" href="assets/course.css"></head><body><aside><div class="brand">Event<span>Flow</span><small>BUILD • UNDERSTAND • OPERATE</small></div><div class="offline">OFFLINE READY · no CDN or server required</div><input id="search" class="search" aria-label="Search lessons" placeholder="Find a lesson…"><nav><a class="" href="index.html">Start · component inventory</a><a class="" href="diagram.html">Architecture and working relationships</a><a class="" href="kafka.html">Kafka · step-by-step learning track</a><a class="" href="01-foundations.html">01 · Workstation, account and learning path</a><a class="" href="02-iam.html">02 · IAM roles, permissions and pod identity</a><a class="" href="03-network.html">03 · VPC, subnets, routes and security groups</a><a class="" href="04-s3.html">04 · S3 buckets, request files and source checkpoints</a><a class="" href="05-dynamodb.html">05 · DynamoDB keys, transactions and accounting state</a><a class="" href="06-sqs.html">06 · SQS buffering, visibility and the ingress DLQ</a><a class="" href="07-msk.html">07 · Amazon MSK and the two Kafka topics</a><a class="" href="08-workflows.html">08 · Step Functions and Java Activity workers</a><a class="" href="09-java-grpc.html">09 · Java modules, mock gRPC and financial rules</a><a class="" href="10-docker-localstack.html">10 · Docker and LocalStack: the complete local lab</a><a class="" href="11-ecr.html">11 · ECR: build once and promote an immutable image</a><a class="" href="12-eks.html">12 · EKS cluster, managed nodes and private services</a><a class="" href="13-pods.html">13 · Pod identity, configuration and service-by-service rollout</a><a class="" href="14-ides.html">14 · IntelliJ IDEA and VS Code: read, test, debug, deploy</a><a class="" href="15-file-trigger.html">15 · GUI and S3 file trigger: your application entry point</a><a class="" href="16-capstone.html">16 · Assemble the application and run the capstone</a><a class="" href="17-scaling.html">17 · Batching, Kafka lag, KEDA and node capacity</a><a class="" href="18-observability.html">18 · CloudWatch, CloudTrail and operational evidence</a><a class="" href="19-enterprise.html">19 · Infrastructure as code and enterprise delivery</a><a class="" href="20-recovery.html">20 · Failure drills, troubleshooting and safe cleanup</a><a class="current" href="21-assessment.html">21 · Readiness assessment and next engineering exercises</a><a class="" href="k01-concepts.html">K01 · Kafka from first principles</a><a class="" href="k02-local-lab.html">K02 · Start your own isolated Kafka lab</a><a class="" href="k03-first-record.html">K03 · Create a topic, publish and read records</a><a class="" href="k04-groups.html">K04 · Consumer groups, offsets and parallelism</a><a class="" href="k05-java.html">K05 · Read and debug the Java producer and consumer</a><a class="" href="k06-batching.html">K06 · Batching, message size and backpressure</a><a class="" href="k07-replay.html">K07 · Replay, retries and duplicate protection</a><a class="" href="k08-contracts.html">K08 · Keys, ordering, retention and schema evolution</a><a class="" href="k09-msk-operations.html">K09 · Move from a lab broker to MSK and EKS</a><a class="" href="k10-capstone.html">K10 · End-to-end Kafka capstone and next steps</a></nav><p class="small" style="color:#bed0db">CLI examples use AWS CloudShell Bash unless labelled PowerShell. Completion marks are self-reported.</p></aside><main><header><div class="eyebrow">EVENTFLOW WITH KAFKA / HANDS-ON AWS COURSE</div><div class="actions"><a class="button" href="index.html">Component inventory</a><button onclick="window.print()">Print / PDF</button></div></header><div class="eyebrow" style="margin-top:28px">LEARN → CREATE → TEST → EXPLAIN</div><h1>21 · Readiness assessment and next engineering exercises</h1><p class="lede">Use the course to develop practical competence, then demonstrate it through independent operation and tradeoff analysis. Reading a document alone does not establish SME status. The final assessment asks you to build, explain, diagnose and recover without copying unexplained commands.</p><div class="card"><h2>When to use it</h2><ul><li>A portfolio of evidence: diagrams, scripts, test output and failure reports.</li><li>A design review explaining where guarantees end and which production controls remain.</li><li>A basis for deeper AWS networking, Kafka operations, Kubernetes and financial domain training.</li></ul></div><h2>Create through the AWS console / IDE</h2><ol><li>Recreate a clean sandbox using one provisioning method. Record every resource owner and dependency.</li><li>Demonstrate console and CLI read operations for each AWS service, plus at least one controlled create/update exercise.</li><li>Debug one Java calculation from IntelliJ or VS Code and explain the source-to-target identity chain.</li><li>Upload an S3 request file and independently reconcile its complete accounting output.</li><li>Demonstrate a safe restart, explain Kafka offsets versus S3 cursors, and review a change set and rollback scenario.</li></ol><h2>Create or inspect through CLI</h2><div class="note">Choose this as an alternative provisioning path; do not create duplicate named resources. Commands are examples for a sandbox and require replacing placeholders. CloudShell examples use Bash; Windows-specific commands are labelled.</div><div class="codehead"><span>Command / example</span><button data-copy="commands">Copy</button></div><pre id="commands"><code># Your evidence checklist should include:
+aws sts get-caller-identity
+aws cloudformation describe-stacks --stack-name eventflow-core
+kubectl -n eventflow get deployments,pods,services
+python scripts/smoke-test.py --run-id RUN_ID --verify-db --aws-native --region us-east-1
+# Record identities/counts/results, not credentials or task tokens.</code></pre><h2>Test this component before continuing</h2><p>Answer the review questions below and perform the capstone without skipping component exit criteria. Have a peer review at least one failure drill and one infrastructure change.</p><div class="pass"><strong>Exit criterion</strong><p>You can explain the full path, create and test each dependency, operate a small deployment and identify the remaining production gaps. Large-scale performance, compliance and domain-specific accounting correctness require further measured review.</p></div><h2>Follow the code</h2><p><code>docs/evidence/end-to-end.json</code></p><p><a download href="source/docs/evidence/end-to-end.json">Download this source file</a></p><details><summary>Read the actual source, offline</summary><div class="codehead"><span>Source reference</span><button data-copy="source-code">Copy</button></div><pre id="source-code"><code>{
+  &quot;date&quot;: &quot;2026-11-04&quot;,
+  &quot;brokerMode&quot;: &quot;LocalStack MSK&quot;,
+  &quot;runs&quot;: [
+    {
+      &quot;runId&quot;: &quot;R-1793846340361-6666&quot;,
+      &quot;level&quot;: &quot;POOL&quot;,
+      &quot;accountingDate&quot;: &quot;2026-11-04&quot;,
+      &quot;status&quot;: &quot;COMMITTED&quot;,
+      &quot;loans&quot;: 100,
+      &quot;published&quot;: 100,
+      &quot;BE&quot;: 900,
+      &quot;AR&quot;: 900,
+      &quot;loanApplicationItems&quot;: 300,
+      &quot;balancedAR&quot;: 900
+    },
+    {
+      &quot;runId&quot;: &quot;R-1793846861986-62fc&quot;,
+      &quot;level&quot;: &quot;LOAN&quot;,
+      &quot;accountingDate&quot;: &quot;2026-11-04&quot;,
+      &quot;status&quot;: &quot;COMMITTED&quot;,
+      &quot;loans&quot;: 100,
+      &quot;published&quot;: 100,
+      &quot;BE&quot;: 900,
+      &quot;AR&quot;: 900,
+      &quot;loanApplicationItems&quot;: 300,
+      &quot;balancedAR&quot;: 900
+    }
+  ],
+  &quot;workflows&quot;: [
+    {
+      &quot;batchId&quot;: &quot;B-00d1f485-732&quot;,
+      &quot;workflow&quot;: &quot;SUCCEEDED&quot;,
+      &quot;activityFailures&quot;: 0,
+      &quot;activityTimeouts&quot;: 0
+    },
+    {
+      &quot;batchId&quot;: &quot;B-84e627a5-dc1&quot;,
+      &quot;workflow&quot;: &quot;SUCCEEDED&quot;,
+      &quot;activityFailures&quot;: 0,
+      &quot;activityTimeouts&quot;: 1
+    }
+  ],
+  &quot;kafka&quot;: {
+    &quot;eventflow.enriched-loans&quot;: {
+      &quot;lag&quot;: 0,
+      &quot;messages&quot;: 101,
+      &quot;unit&quot;: &quot;loan envelopes&quot;,
+      &quot;partitions&quot;: 6
+    },
+    &quot;eventflow.business-events&quot;: {
+      &quot;lag&quot;: 0,
+      &quot;messages&quot;: 101,
+      &quot;unit&quot;: &quot;business events&quot;,
+      &quot;partitions&quot;: 6
+    }
+  }
+}</code></pre></details><h2>Explain and investigate</h2><p>Propose three next increments: transactional file acceptance/outbox, stronger source fencing and typed protobuf contracts. Rank them by the failure or maintenance risk they address.</p><details><summary>What to record in your lab notebook</summary><ul><li>Account/region, resource IDs and chosen provisioning method.</li><li>Relevant configuration and why you chose it.</li><li>The command/test and the observed result, including failures.</li><li>Recovery action and how you checked the business invariants.</li><li>Known gaps and the next experiment; exclude secrets and task tokens.</li></ul></details><label class="complete"><input type="checkbox" data-complete="21-assessment"> I performed this lab and can explain the exit criterion (self-reported).</label><h2>Official reference</h2><p><a href="https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html" target="_blank" rel="noopener">https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html</a></p><p class="small">External references need internet; the lesson content and source download do not.</p><div class="pager"><a href="20-recovery.html">← Previous lesson</a><a href="k01-concepts.html">Next lesson →</a></div><footer>Course source revision: 2026-11-04. Console wording and supported service versions can change; official references are provided for verification. LocalStack evidence is distinct from AWS deployment evidence. No cloud resources are created by opening this file.</footer></main><script src="assets/course.js"></script></body></html>

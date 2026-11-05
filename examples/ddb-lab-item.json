@@ -1,0 +1,11 @@
+{
+  "pk": {
+    "S": "LAB#learning"
+  },
+  "sk": {
+    "S": "CHECK"
+  },
+  "payload": {
+    "S": "{\"lesson\": \"dynamodb\", \"status\": \"LAB_ONLY\"}"
+  }
+}

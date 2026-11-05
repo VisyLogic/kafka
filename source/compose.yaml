@@ -1,0 +1,86 @@
+name: eventflow-kafka
+x-app: &app
+  image: eventflow-java:1.0.0
+  build:
+    context: .
+    dockerfile: infrastructure/docker/Dockerfile
+  environment: &env
+    AWS_ENDPOINT_URL: http://host.docker.internal:4570
+    AWS_REGION: us-east-1
+    AWS_ACCOUNT_ID: '000000000000'
+    TABLE_NAME: eventflow-data
+    BUCKET_NAME: eventflow-artifacts-local
+    GRPC_TARGET: mock-source:9095
+    KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-}
+  extra_hosts: [host.docker.internal:host-gateway]
+  restart: unless-stopped
+  mem_limit: 320m
+services:
+  localstack:
+    image: ${LOCALSTACK_IMAGE:-localstack/localstack:2026.10.0}
+    ports:
+      - 127.0.0.1:4570:4566
+      - 127.0.0.1:4610-4659:4610-4659
+    environment:
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:-}
+      AWS_DEFAULT_REGION: us-east-1
+      PERSISTENCE: '1'
+      SNAPSHOT_FLUSH_INTERVAL: '60'
+      EXTERNAL_SERVICE_PORTS_START: '4610'
+      EXTERNAL_SERVICE_PORTS_END: '4659'
+      LOCALSTACK_HOST: host.docker.internal:4570
+      SQS_ENDPOINT_STRATEGY: dynamic
+    volumes:
+      - eventflow-localstack:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    mem_limit: 1400m
+  kafka:
+    profiles: [standalone]
+    image: apache/kafka:4.1.2
+    hostname: kafka
+    ports: [127.0.0.1:19092:19092]
+    environment:
+      KAFKA_NODE_ID: '1'
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xms128m -Xmx256m
+    volumes: [eventflow-kafka:/var/lib/kafka/data]
+    mem_limit: 600m
+  console:
+    <<: *app
+    ports: [127.0.0.1:8095:8095]
+    environment:
+      <<: *env
+      SERVICE_ROLE: console
+      MAX_TEST_LOANS: ${MAX_TEST_LOANS:-100000}
+  adapter:
+    <<: *app
+    environment:
+      <<: *env
+      SERVICE_ROLE: adapter
+  mock-source:
+    <<: *app
+    environment: {SERVICE_ROLE: mock-source, GRPC_PORT: '9095'}
+  sourcing:
+    <<: *app
+    environment:
+      <<: *env
+      SERVICE_ROLE: sourcing
+  activity:
+    <<: *app
+    environment:
+      <<: *env
+      SERVICE_ROLE: activity
+volumes:
+  eventflow-localstack:
+  eventflow-kafka:

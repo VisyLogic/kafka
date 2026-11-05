@@ -1,0 +1,10 @@
+{
+  "fileName": "learning-request.json",
+  "request": {
+    "totalLoans": 100,
+    "poolSize": 100,
+    "level": "POOL",
+    "eventType": "settled",
+    "accountingDate": "2026-11-04"
+  }
+}

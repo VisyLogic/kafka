@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Minimal two-AZ network metadata for LocalStack MSK (no NAT or internet gateway)
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties: {CidrBlock: 10.43.0.0/16, EnableDnsSupport: true, EnableDnsHostnames: true}
+  SubnetA:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref Vpc, CidrBlock: 10.43.0.0/24, AvailabilityZone: !Select [0, !GetAZs '']}
+  SubnetB:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref Vpc, CidrBlock: 10.43.1.0/24, AvailabilityZone: !Select [1, !GetAZs '']}
+  BrokerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EventFlow local MSK metadata
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 9092, ToPort: 9094, CidrIp: 10.43.0.0/16}
+Outputs:
+  SubnetA: {Value: !Ref SubnetA}
+  SubnetB: {Value: !Ref SubnetB}
+  SecurityGroupId: {Value: !Ref BrokerSecurityGroup}

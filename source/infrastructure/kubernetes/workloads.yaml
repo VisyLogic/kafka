@@ -1,0 +1,127 @@
+# Apply after replacing image and configuring the ConfigMap for local Kubernetes or AWS.
+apiVersion: v1
+kind: Namespace
+metadata: {name: eventflow}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: eventflow, namespace: eventflow}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: eventflow, namespace: eventflow}
+data:
+  AWS_ENDPOINT_URL: http://host.docker.internal:4570
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: '000000000000'
+  TABLE_NAME: eventflow-data
+  BUCKET_NAME: eventflow-artifacts-local
+  GRPC_TARGET: eventflow-mock-source:9095
+  KAFKA_BOOTSTRAP_SERVERS: REPLACE_WITH_REACHABLE_BROKERS
+  KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+  KAFKA_REPLICATION_FACTOR: '1'
+  MAX_TEST_LOANS: '100000'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: eventflow-console, namespace: eventflow}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: eventflow-console}}
+  template:
+    metadata: {labels: {app: eventflow-console}}
+    spec:
+      serviceAccountName: eventflow
+      containers:
+        - name: console
+          image: eventflow-java:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom: [{configMapRef: {name: eventflow}}]
+          env: [{name: SERVICE_ROLE, value: console}]
+          ports: [{containerPort: 8095}]
+          readinessProbe: {httpGet: {path: /api/health, port: 8095}, initialDelaySeconds: 15, periodSeconds: 5}
+          resources: {requests: {cpu: 100m, memory: 192Mi}, limits: {cpu: '1', memory: 384Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: eventflow-console, namespace: eventflow}
+spec: {selector: {app: eventflow-console}, ports: [{port: 8095, targetPort: 8095}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: eventflow-adapter, namespace: eventflow}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: eventflow-adapter}}
+  template:
+    metadata: {labels: {app: eventflow-adapter}}
+    spec:
+      serviceAccountName: eventflow
+      containers:
+        - name: adapter
+          image: eventflow-java:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom: [{configMapRef: {name: eventflow}}]
+          env: [{name: SERVICE_ROLE, value: adapter}]
+          resources: {requests: {cpu: 100m, memory: 192Mi}, limits: {cpu: '1', memory: 384Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: eventflow-sourcing, namespace: eventflow}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: eventflow-sourcing}}
+  template:
+    metadata: {labels: {app: eventflow-sourcing}}
+    spec:
+      serviceAccountName: eventflow
+      terminationGracePeriodSeconds: 90
+      containers:
+        - name: sourcing
+          image: eventflow-java:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom: [{configMapRef: {name: eventflow}}]
+          env: [{name: SERVICE_ROLE, value: sourcing}]
+          resources: {requests: {cpu: 100m, memory: 192Mi}, limits: {cpu: '1', memory: 384Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: eventflow-activity, namespace: eventflow}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: eventflow-activity}}
+  template:
+    metadata: {labels: {app: eventflow-activity}}
+    spec:
+      serviceAccountName: eventflow
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: activity
+          image: eventflow-java:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom: [{configMapRef: {name: eventflow}}]
+          env: [{name: SERVICE_ROLE, value: activity}]
+          resources: {requests: {cpu: 100m, memory: 192Mi}, limits: {cpu: '1', memory: 384Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: eventflow-mock-source, namespace: eventflow}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: eventflow-mock-source}}
+  template:
+    metadata: {labels: {app: eventflow-mock-source}}
+    spec:
+      serviceAccountName: eventflow
+      containers:
+        - name: mock
+          image: eventflow-java:1.0.0
+          imagePullPolicy: IfNotPresent
+          env: [{name: SERVICE_ROLE, value: mock-source}]
+          ports: [{containerPort: 9095}]
+          resources: {requests: {cpu: 100m, memory: 192Mi}, limits: {cpu: '1', memory: 384Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: eventflow-mock-source, namespace: eventflow}
+spec: {selector: {app: eventflow-mock-source}, ports: [{port: 9095, targetPort: 9095}]}

@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>03 · VPC, subnets, routes and security groups · EventFlow learning</title><link rel="stylesheet" href="assets/course.css"></head><body><aside><div class="brand">Event<span>Flow</span><small>BUILD • UNDERSTAND • OPERATE</small></div><div class="offline">OFFLINE READY · no CDN or server required</div><input id="search" class="search" aria-label="Search lessons" placeholder="Find a lesson…"><nav><a class="" href="index.html">Start · component inventory</a><a class="" href="diagram.html">Architecture and working relationships</a><a class="" href="kafka.html">Kafka · step-by-step learning track</a><a class="" href="01-foundations.html">01 · Workstation, account and learning path</a><a class="" href="02-iam.html">02 · IAM roles, permissions and pod identity</a><a class="current" href="03-network.html">03 · VPC, subnets, routes and security groups</a><a class="" href="04-s3.html">04 · S3 buckets, request files and source checkpoints</a><a class="" href="05-dynamodb.html">05 · DynamoDB keys, transactions and accounting state</a><a class="" href="06-sqs.html">06 · SQS buffering, visibility and the ingress DLQ</a><a class="" href="07-msk.html">07 · Amazon MSK and the two Kafka topics</a><a class="" href="08-workflows.html">08 · Step Functions and Java Activity workers</a><a class="" href="09-java-grpc.html">09 · Java modules, mock gRPC and financial rules</a><a class="" href="10-docker-localstack.html">10 · Docker and LocalStack: the complete local lab</a><a class="" href="11-ecr.html">11 · ECR: build once and promote an immutable image</a><a class="" href="12-eks.html">12 · EKS cluster, managed nodes and private services</a><a class="" href="13-pods.html">13 · Pod identity, configuration and service-by-service rollout</a><a class="" href="14-ides.html">14 · IntelliJ IDEA and VS Code: read, test, debug, deploy</a><a class="" href="15-file-trigger.html">15 · GUI and S3 file trigger: your application entry point</a><a class="" href="16-capstone.html">16 · Assemble the application and run the capstone</a><a class="" href="17-scaling.html">17 · Batching, Kafka lag, KEDA and node capacity</a><a class="" href="18-observability.html">18 · CloudWatch, CloudTrail and operational evidence</a><a class="" href="19-enterprise.html">19 · Infrastructure as code and enterprise delivery</a><a class="" href="20-recovery.html">20 · Failure drills, troubleshooting and safe cleanup</a><a class="" href="21-assessment.html">21 · Readiness assessment and next engineering exercises</a><a class="" href="k01-concepts.html">K01 · Kafka from first principles</a><a class="" href="k02-local-lab.html">K02 · Start your own isolated Kafka lab</a><a class="" href="k03-first-record.html">K03 · Create a topic, publish and read records</a><a class="" href="k04-groups.html">K04 · Consumer groups, offsets and parallelism</a><a class="" href="k05-java.html">K05 · Read and debug the Java producer and consumer</a><a class="" href="k06-batching.html">K06 · Batching, message size and backpressure</a><a class="" href="k07-replay.html">K07 · Replay, retries and duplicate protection</a><a class="" href="k08-contracts.html">K08 · Keys, ordering, retention and schema evolution</a><a class="" href="k09-msk-operations.html">K09 · Move from a lab broker to MSK and EKS</a><a class="" href="k10-capstone.html">K10 · End-to-end Kafka capstone and next steps</a></nav><p class="small" style="color:#bed0db">CLI examples use AWS CloudShell Bash unless labelled PowerShell. Completion marks are self-reported.</p></aside><main><header><div class="eyebrow">EVENTFLOW WITH KAFKA / HANDS-ON AWS COURSE</div><div class="actions"><a class="button" href="index.html">Component inventory</a><button onclick="window.print()">Print / PDF</button></div></header><div class="eyebrow" style="margin-top:28px">LEARN → CREATE → TEST → EXPLAIN</div><h1>03 · VPC, subnets, routes and security groups</h1><p class="lede">EKS workers and MSK brokers live in a private network. A subnet is an address range in one availability zone; a route table determines next hops; a security group filters allowed traffic. DNS and network reachability are separate from IAM authorization.</p><div class="card"><h2>When to use it</h2><ul><li>Private databases, Kafka brokers and internal microservices.</li><li>NAT for controlled outbound traffic such as image/dependency access, or private endpoints where appropriate.</li><li>Restrict broker traffic to the cluster security group; never expose Kafka to the public internet for a quick fix.</li></ul></div><h2>Create through the AWS console / IDE</h2><ol><li>VPC → Create VPC → VPC and more. Use two availability zones, two public subnets and two private subnets, with DNS support enabled.</li><li>For a small lab choose one NAT gateway and note its cost; production resilience usually uses a deliberate per-AZ or endpoint design.</li><li>Confirm each private route table has a default route through the NAT and each public route table through the internet gateway. MSK broker traffic remains private.</li><li>Record the VPC ID and the two private subnet IDs. Use exactly those same subnets for the EKS node group and MSK.</li><li>After EKS creates its cluster security group, allow TCP 9098 from that group into the MSK broker security group for the AWS IAM-authenticated track. LocalStack uses local plaintext broker ports, a different profile.</li></ol><h2>Create or inspect through CLI</h2><div class="note">Choose this as an alternative provisioning path; do not create duplicate named resources. Commands are examples for a sandbox and require replacing placeholders. CloudShell examples use Bash; Windows-specific commands are labelled.</div><div class="codehead"><span>Command / example</span><button data-copy="commands">Copy</button></div><pre id="commands"><code># The CLI path creates the same network through reviewed infrastructure as code.
+aws cloudformation deploy --stack-name eventflow-network --template-file examples/cloudformation/network.yaml
+aws cloudformation describe-stacks --stack-name eventflow-network --query &quot;Stacks[0].Outputs&quot;
+aws ec2 describe-subnets --subnet-ids SUBNET_A SUBNET_B
+aws ec2 describe-route-tables --filters Name=vpc-id,Values=VPC_ID</code></pre><h2>Test this component before continuing</h2><p>Verify two different availability zones, the private routes, DNS support, and the MSK security-group source. From the eventual pod/client, test broker connectivity; a successful describe-cluster API call alone is insufficient.</p><div class="pass"><strong>Exit criterion</strong><p>Two private subnets in different AZs with controlled egress. No public inbound broker rule. The supplied local-network.yaml is only minimal LocalStack metadata and is not the full AWS network.</p></div><h2>Follow the code</h2><p><code>infrastructure/cloudformation/network.yaml</code></p><p><a download href="source/infrastructure/cloudformation/network.yaml">Download this source file</a></p><details><summary>Read the actual source, offline</summary><div class="codehead"><span>Source reference</span><button data-copy="source-code">Copy</button></div><pre id="source-code"><code>AWSTemplateFormatVersion: &#x27;2010-09-09&#x27;
+Description: Optional AWS-only two-AZ network for EventFlow. NAT gateway incurs charges.
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties: {CidrBlock: 10.42.0.0/16, EnableDnsSupport: true, EnableDnsHostnames: true, Tags: [{Key: Name, Value: eventflow}]}
+  InternetGateway: {Type: &#x27;AWS::EC2::InternetGateway&#x27;}
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: {VpcId: !Ref Vpc, InternetGatewayId: !Ref InternetGateway}
+  PublicA:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref Vpc, CidrBlock: 10.42.0.0/24, AvailabilityZone: !Select [0, !GetAZs &#x27;&#x27;]}
+  PublicB:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref Vpc, CidrBlock: 10.42.1.0/24, AvailabilityZone: !Select [1, !GetAZs &#x27;&#x27;]}
+  PrivateA:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref Vpc, CidrBlock: 10.42.10.0/24, AvailabilityZone: !Select [0, !GetAZs &#x27;&#x27;]}
+  PrivateB:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref Vpc, CidrBlock: 10.42.11.0/24, AvailabilityZone: !Select [1, !GetAZs &#x27;&#x27;]}
+  PublicRoutes:
+    Type: AWS::EC2::RouteTable
+    Properties: {VpcId: !Ref Vpc}
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties: {RouteTableId: !Ref PublicRoutes, DestinationCidrBlock: 0.0.0.0/0, GatewayId: !Ref InternetGateway}
+  PublicARoutes:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PublicA, RouteTableId: !Ref PublicRoutes}
+  PublicBRoutes:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PublicB, RouteTableId: !Ref PublicRoutes}
+  NatAddress:
+    Type: AWS::EC2::EIP
+    DependsOn: GatewayAttachment
+    Properties: {Domain: vpc}
+  Nat:
+    Type: AWS::EC2::NatGateway
+    Properties: {AllocationId: !GetAtt NatAddress.AllocationId, SubnetId: !Ref PublicA}
+  PrivateRoutes:
+    Type: AWS::EC2::RouteTable
+    Properties: {VpcId: !Ref Vpc}
+  NatRoute:
+    Type: AWS::EC2::Route
+    Properties: {RouteTableId: !Ref PrivateRoutes, DestinationCidrBlock: 0.0.0.0/0, NatGatewayId: !Ref Nat}
+  PrivateARoutes:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PrivateA, RouteTableId: !Ref PrivateRoutes}
+  PrivateBRoutes:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PrivateB, RouteTableId: !Ref PrivateRoutes}
+Outputs:
+  VpcId: {Value: !Ref Vpc}
+  PrivateSubnetIds: {Value: !Join [&#x27;,&#x27;, [!Ref PrivateA, !Ref PrivateB]]}
+</code></pre></details><h2>Explain and investigate</h2><p>Diagnose: IAM permissions are correct but the Kafka client times out. List DNS, route, security-group and broker-listener checks in order.</p><details><summary>What to record in your lab notebook</summary><ul><li>Account/region, resource IDs and chosen provisioning method.</li><li>Relevant configuration and why you chose it.</li><li>The command/test and the observed result, including failures.</li><li>Recovery action and how you checked the business invariants.</li><li>Known gaps and the next experiment; exclude secrets and task tokens.</li></ul></details><label class="complete"><input type="checkbox" data-complete="03-network"> I performed this lab and can explain the exit criterion (self-reported).</label><h2>Official reference</h2><p><a href="https://docs.aws.amazon.com/vpc/latest/userguide/create-vpc.html" target="_blank" rel="noopener">https://docs.aws.amazon.com/vpc/latest/userguide/create-vpc.html</a></p><p class="small">External references need internet; the lesson content and source download do not.</p><div class="pager"><a href="02-iam.html">← Previous lesson</a><a href="04-s3.html">Next lesson →</a></div><footer>Course source revision: 2026-11-04. Console wording and supported service versions can change; official references are provided for verification. LocalStack evidence is distinct from AWS deployment evidence. No cloud resources are created by opening this file.</footer></main><script src="assets/course.js"></script></body></html>

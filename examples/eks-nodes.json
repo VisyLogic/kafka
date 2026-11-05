@@ -1,0 +1,17 @@
+{
+  "clusterName": "eventflow",
+  "nodegroupName": "learning-workers",
+  "nodeRole": "arn:aws:iam::ACCOUNT_ID:role/EventFlowNodeRole",
+  "subnets": [
+    "SUBNET_A",
+    "SUBNET_B"
+  ],
+  "instanceTypes": [
+    "t3.large"
+  ],
+  "scalingConfig": {
+    "minSize": 1,
+    "desiredSize": 1,
+    "maxSize": 3
+  }
+}
