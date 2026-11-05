@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Separate MSK learning lab. Two private brokers, SSM Java client and optional SQS exercise. Uses an existing VPC with NAT/SSM connectivity.
+Parameters:
+  VpcId: {Type: 'AWS::EC2::VPC::Id'}
+  BrokerSubnetA: {Type: 'AWS::EC2::Subnet::Id'}
+  BrokerSubnetB: {Type: 'AWS::EC2::Subnet::Id', Description: Different Availability Zone from BrokerSubnetA}
+  ClientSubnet: {Type: 'AWS::EC2::Subnet::Id', Description: Same VPC with outbound NAT for SSM, package installs and downloads}
+  KafkaVersion: {Type: String, Default: 3.9.x, Description: Select a supported Standard broker version in this region}
+  ClientAmi:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+Resources:
+  ClientSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: {GroupDescription: MSK lab client - no inbound ports, VpcId: !Ref VpcId}
+  BrokerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Private IAM Kafka from lab client
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 9098, ToPort: 9098, SourceSecurityGroupId: !Ref ClientSG}
+  BrokerInternal:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties: {GroupId: !Ref BrokerSG, SourceSecurityGroupId: !Ref BrokerSG, IpProtocol: '-1'}
+  Brokers:
+    Type: AWS::MSK::Cluster
+    Properties:
+      ClusterName: msk-learning
+      KafkaVersion: !Ref KafkaVersion
+      NumberOfBrokerNodes: 2
+      BrokerNodeGroupInfo:
+        InstanceType: kafka.m5.large
+        ClientSubnets: [!Ref BrokerSubnetA, !Ref BrokerSubnetB]
+        SecurityGroups: [!Ref BrokerSG]
+        StorageInfo: {EBSStorageInfo: {VolumeSize: 10}}
+      ClientAuthentication: {Sasl: {Iam: {Enabled: true}}, Unauthenticated: {Enabled: false}}
+      EncryptionInfo: {EncryptionInTransit: {ClientBroker: TLS, InCluster: true}}
+  DeadLetters:
+    Type: AWS::SQS::Queue
+    Properties: {MessageRetentionPeriod: 1209600, SqsManagedSseEnabled: true}
+  Queue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 60
+      SqsManagedSseEnabled: true
+      RedrivePolicy: {deadLetterTargetArn: !GetAtt DeadLetters.Arn, maxReceiveCount: 3}
+  ClientRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: ec2.amazonaws.com}, Action: 'sts:AssumeRole'}]
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore]
+      Policies:
+        - PolicyName: LabOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['kafka-cluster:Connect', 'kafka-cluster:DescribeCluster', 'kafka-cluster:WriteDataIdempotently']
+                Resource: !Ref Brokers
+              - Effect: Allow
+                Action: ['kafka-cluster:CreateTopic', 'kafka-cluster:DescribeTopic', 'kafka-cluster:ReadData', 'kafka-cluster:WriteData']
+                Resource: !Sub arn:${AWS::Partition}:kafka:${AWS::Region}:${AWS::AccountId}:topic/msk-learning/*/learning.msk.*
+              - Effect: Allow
+                Action: ['kafka-cluster:DescribeGroup', 'kafka-cluster:AlterGroup']
+                Resource: !Sub arn:${AWS::Partition}:kafka:${AWS::Region}:${AWS::AccountId}:group/msk-learning/*/msk-learning-*
+              - Effect: Allow
+                Action: ['sqs:SendMessage', 'sqs:ReceiveMessage', 'sqs:DeleteMessage', 'sqs:GetQueueAttributes']
+                Resource: !GetAtt Queue.Arn
+  ClientProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: {Roles: [!Ref ClientRole]}
+  Client:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ClientAmi
+      InstanceType: t3.small
+      SubnetId: !Ref ClientSubnet
+      SecurityGroupIds: [!Ref ClientSG]
+      IamInstanceProfile: !Ref ClientProfile
+      MetadataOptions: {HttpTokens: required, HttpEndpoint: enabled}
+      Tags: [{Key: Name, Value: msk-learning-client}]
+Outputs:
+  ClusterArn: {Value: !Ref Brokers}
+  ClientInstance: {Value: !Ref Client}
+  ClientRole: {Value: !Ref ClientRole}
+  ClientSecurityGroup: {Value: !Ref ClientSG}
+  BrokerSecurityGroup: {Value: !Ref BrokerSG}
+  QueueUrl: {Value: !Ref Queue}
+  QueueArn: {Value: !GetAtt Queue.Arn}

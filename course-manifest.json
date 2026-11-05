@@ -4,6 +4,7 @@
     "index.html",
     "diagram.html",
     "kafka.html",
+    "msk.html",
     "01-foundations.html",
     "02-iam.html",
     "03-network.html",
@@ -34,10 +35,16 @@
     "k07-replay.html",
     "k08-contracts.html",
     "k09-msk-operations.html",
-    "k10-capstone.html"
+    "k10-capstone.html",
+    "m01-msk-create.html",
+    "m02-msk-client.html",
+    "m03-msk-topics.html",
+    "m04-msk-java.html",
+    "m05-msk-sqs.html"
   ],
-  "chapters": 31,
+  "chapters": 36,
   "kafkaLessons": 10,
+  "mskLessons": 5,
   "components": 30,
   "offline": true,
   "version": "2026-11-04"

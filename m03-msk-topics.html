@@ -1,0 +1,106 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>M03 · Create topics and inspect partitions · EventFlow learning</title><link rel="stylesheet" href="assets/course.css"></head><body><aside><div class="brand">Event<span>Flow</span><small>BUILD • UNDERSTAND • OPERATE</small></div><div class="offline">OFFLINE READY · no CDN or server required</div><input id="search" class="search" aria-label="Search lessons" placeholder="Find a lesson…"><nav><a class="" href="index.html">Start · component inventory</a><a class="" href="diagram.html">Architecture and working relationships</a><a class="" href="kafka.html">Kafka · step-by-step learning track</a><a class="" href="msk.html">Amazon MSK · hands-on learning section</a><a class="" href="01-foundations.html">01 · Workstation, account and learning path</a><a class="" href="02-iam.html">02 · IAM roles, permissions and pod identity</a><a class="" href="03-network.html">03 · VPC, subnets, routes and security groups</a><a class="" href="04-s3.html">04 · S3 buckets, request files and source checkpoints</a><a class="" href="05-dynamodb.html">05 · DynamoDB keys, transactions and accounting state</a><a class="" href="06-sqs.html">06 · SQS buffering, visibility and the ingress DLQ</a><a class="" href="07-msk.html">07 · Amazon MSK and the two Kafka topics</a><a class="" href="08-workflows.html">08 · Step Functions and Java Activity workers</a><a class="" href="09-java-grpc.html">09 · Java modules, mock gRPC and financial rules</a><a class="" href="10-docker-localstack.html">10 · Docker and LocalStack: the complete local lab</a><a class="" href="11-ecr.html">11 · ECR: build once and promote an immutable image</a><a class="" href="12-eks.html">12 · EKS cluster, managed nodes and private services</a><a class="" href="13-pods.html">13 · Pod identity, configuration and service-by-service rollout</a><a class="" href="14-ides.html">14 · IntelliJ IDEA and VS Code: read, test, debug, deploy</a><a class="" href="15-file-trigger.html">15 · GUI and S3 file trigger: your application entry point</a><a class="" href="16-capstone.html">16 · Assemble the application and run the capstone</a><a class="" href="17-scaling.html">17 · Batching, Kafka lag, KEDA and node capacity</a><a class="" href="18-observability.html">18 · CloudWatch, CloudTrail and operational evidence</a><a class="" href="19-enterprise.html">19 · Infrastructure as code and enterprise delivery</a><a class="" href="20-recovery.html">20 · Failure drills, troubleshooting and safe cleanup</a><a class="" href="21-assessment.html">21 · Readiness assessment and next engineering exercises</a><a class="" href="k01-concepts.html">K01 · Kafka from first principles</a><a class="" href="k02-local-lab.html">K02 · Start your own isolated Kafka lab</a><a class="" href="k03-first-record.html">K03 · Create a topic, publish and read records</a><a class="" href="k04-groups.html">K04 · Consumer groups, offsets and parallelism</a><a class="" href="k05-java.html">K05 · Read and debug the Java producer and consumer</a><a class="" href="k06-batching.html">K06 · Batching, message size and backpressure</a><a class="" href="k07-replay.html">K07 · Replay, retries and duplicate protection</a><a class="" href="k08-contracts.html">K08 · Keys, ordering, retention and schema evolution</a><a class="" href="k09-msk-operations.html">K09 · Move from a lab broker to MSK and EKS</a><a class="" href="k10-capstone.html">K10 · End-to-end Kafka capstone and next steps</a><a class="" href="m01-msk-create.html">M01 · Prepare the network and create an MSK cluster</a><a class="" href="m02-msk-client.html">M02 · Configure IAM, security groups and the Java client</a><a class="current" href="m03-msk-topics.html">M03 · Create topics and inspect partitions</a><a class="" href="m04-msk-java.html">M04 · Run the sample producer, consumer and enrichment service</a><a class="" href="m05-msk-sqs.html">M05 · Optional SQS handoff, troubleshooting and cleanup</a></nav><p class="small" style="color:#bed0db">CLI examples use AWS CloudShell Bash unless labelled PowerShell. Completion marks are self-reported.</p></aside><main><header><div class="eyebrow">EVENTFLOW WITH KAFKA / HANDS-ON AWS COURSE</div><div class="actions"><a class="button" href="index.html">Component inventory</a><button onclick="window.print()">Print / PDF</button></div></header><div class="eyebrow" style="margin-top:28px">LEARN → CREATE → TEST → EXPLAIN</div><h1>M03 · Create topics and inspect partitions</h1><p class="lede">Kafka’s streaming destinations are called topics. They are not SQS queues: multiple independent consumer groups can read retained records. This lab creates learning.msk.loan-events and learning.msk.enriched-loans, each with three partitions and two replicas. You can use the MSK Console where topic management is available, or the Java AdminClient included in the sample. Choose one creation path.</p><div class="card"><h2>When to use it</h2><ul><li>Configure input and output streams for a Java application.</li><li>Understand partition parallelism, replication and minimum in-sync replicas.</li><li>Test the Kafka data plane without relying on a healthy-looking cluster page.</li></ul></div><h2>Create through the AWS console / IDE</h2><ol><li>In MSK, open msk-learning → Topics → Create topic, where this feature is available for the chosen cluster/version. Create learning.msk.loan-events with three partitions and replication factor two; repeat for learning.msk.enriched-loans. Set min.insync.replicas=2 for this durability-focused lab. If topic controls are unavailable, use the sample init command instead.</li><li>The CLI alternative below is a Java AdminClient executed on the EC2 client, not a shell command that calls a public Kafka endpoint. It creates missing topics and prints their partition/replica metadata. It does not overwrite settings on topics already created through the Console.</li><li>Inspect all three partitions and verify two replicas per partition. A key determines partition placement; a consumer group can have up to three active partition owners for this topic under ordinary group assignment.</li><li>The lab’s two brokers with minimum ISR two require both replicas for acknowledged writes. This is a teaching durability setting and lacks one-broker write availability; do not mistake it for production fault tolerance.</li><li>Use only these learning topics. Do not create or publish simplified sample events to the actual eventflow.business-events or eventflow.enriched-loans topics.</li></ol><h2>Create or inspect through CLI</h2><div class="note">Choose this as an alternative provisioning path; do not create duplicate named resources. Commands are examples for a sandbox and require replacing placeholders. CloudShell examples use Bash; Windows-specific commands are labelled.</div><div class="codehead"><span>Command / example</span><button data-copy="commands">Copy</button></div><pre id="commands"><code># EC2 terminal, extracted msk-hands-on folder; keep M02 environment variables.
+java -jar target/msk-hands-on.jar init
+# Expected output: both topic names with partition/leader/replica metadata.
+# Running init again should describe the existing topics instead of duplicating them.</code></pre><h2>Test this component before continuing</h2><p>Run init twice. Check that both names exist and metadata shows partitions 0, 1 and 2 with two replicas. Check Console topic settings if you created them manually; init does not repair different existing settings.</p><div class="pass"><strong>Exit criterion</strong><p>Two explicitly configured Kafka topics exist, and the EC2 instance role has authenticated to MSK and performed permitted topic administration.</p></div><h2>Follow the code</h2><p><code>labs/msk-hands-on/src/main/java/com/eventflow/learning/MskLab.java</code></p><p><a download href="source/labs/msk-hands-on/src/main/java/com/eventflow/learning/MskLab.java">Download this source file</a></p><details><summary>Read the actual source, offline</summary><div class="codehead"><span>Source reference</span><button data-copy="source-code">Copy</button></div><pre id="source-code"><code>package com.eventflow.learning;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.kafka.clients.admin.*;
+import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.producer.*;
+import org.apache.kafka.common.serialization.*;
+import software.amazon.awssdk.services.sqs.SqsClient;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+
+/** Standalone teaching client. No EventFlow databases or accounting topics are used. */
+public final class MskLab {
+    static final String INPUT=&quot;learning.msk.loan-events&quot;, OUTPUT=&quot;learning.msk.enriched-loans&quot;;
+    static final ObjectMapper JSON=new ObjectMapper();
+    static String env(String name,String fallback){return System.getenv().getOrDefault(name,fallback);}
+    static Properties properties(){
+        String brokers=env(&quot;MSK_BOOTSTRAP&quot;,&quot;&quot;);
+        if(brokers.isBlank())throw new IllegalArgumentException(&quot;Set MSK_BOOTSTRAP to IAM bootstrap brokers first&quot;);
+        var p=new Properties();p.put(&quot;bootstrap.servers&quot;,brokers);p.put(&quot;client.id&quot;,&quot;msk-learning&quot;);
+        p.put(&quot;request.timeout.ms&quot;,&quot;30000&quot;);p.put(&quot;default.api.timeout.ms&quot;,&quot;60000&quot;);
+        if(Boolean.parseBoolean(env(&quot;MSK_IAM&quot;,&quot;true&quot;))){
+            p.put(&quot;security.protocol&quot;,&quot;SASL_SSL&quot;);p.put(&quot;sasl.mechanism&quot;,&quot;AWS_MSK_IAM&quot;);
+            p.put(&quot;sasl.jaas.config&quot;,&quot;software.amazon.msk.auth.iam.IAMLoginModule required;&quot;);
+            p.put(&quot;sasl.client.callback.handler.class&quot;,&quot;software.amazon.msk.auth.iam.IAMClientCallbackHandler&quot;);
+        }else p.put(&quot;security.protocol&quot;,&quot;PLAINTEXT&quot;); // Only an isolated local broker.
+        return p;
+    }
+    static KafkaProducer&lt;String,String&gt; producer(){
+        var p=properties();p.put(&quot;key.serializer&quot;,StringSerializer.class.getName());p.put(&quot;value.serializer&quot;,StringSerializer.class.getName());
+        p.put(&quot;acks&quot;,&quot;all&quot;);p.put(&quot;enable.idempotence&quot;,&quot;true&quot;);p.put(&quot;delivery.timeout.ms&quot;,&quot;60000&quot;);
+        return new KafkaProducer&lt;&gt;(p);
+    }
+    static KafkaConsumer&lt;String,String&gt; consumer(String group,String topic){
+        if(!group.startsWith(&quot;msk-learning-&quot;))throw new IllegalArgumentException(&quot;Group must begin msk-learning-&quot;);
+        var p=properties();p.put(&quot;group.id&quot;,group);p.put(&quot;enable.auto.commit&quot;,&quot;false&quot;);p.put(&quot;auto.offset.reset&quot;,&quot;earliest&quot;);
+        p.put(&quot;allow.auto.create.topics&quot;,&quot;false&quot;);p.put(&quot;max.poll.records&quot;,&quot;1&quot;);
+        p.put(&quot;key.deserializer&quot;,StringDeserializer.class.getName());p.put(&quot;value.deserializer&quot;,StringDeserializer.class.getName());
+        var c=new KafkaConsumer&lt;String,String&gt;(p);c.subscribe(List.of(topic));return c;
+    }
+    static void init()throws Exception{
+        try(var admin=Admin.create(properties())){
+            var existing=admin.listTopics().names().get(60,TimeUnit.SECONDS);
+            short replicas=Short.parseShort(env(&quot;MSK_REPLICAS&quot;,&quot;2&quot;));
+            for(String topic:List.of(INPUT,OUTPUT))if(!existing.contains(topic))
+                admin.createTopics(List.of(new NewTopic(topic,3,replicas).configs(Map.of(&quot;min.insync.replicas&quot;,replicas&gt;1?&quot;2&quot;:&quot;1&quot;))))
+                     .all().get(60,TimeUnit.SECONDS);
+            var descriptions=admin.describeTopics(List.of(INPUT,OUTPUT)).allTopicNames().get(60,TimeUnit.SECONDS);
+            descriptions.forEach((name,description)-&gt;System.out.println(name+&quot; &quot;+description));
+        }
+    }
+    static void produce(int count)throws Exception{
+        String run=UUID.randomUUID().toString();
+        try(var producer=producer()){
+            for(int i=1;i&lt;=count;i++){
+                String key=&quot;LN-&quot;+String.format(&quot;%04d&quot;,i);
+                String value=JSON.writeValueAsString(Map.of(&quot;eventId&quot;,run+&quot;-&quot;+i,&quot;loanId&quot;,key,&quot;eventType&quot;,&quot;settled&quot;,&quot;principal&quot;,100000+i,&quot;mock&quot;,true));
+                var ack=producer.send(new ProducerRecord&lt;&gt;(INPUT,key,value)).get(65,TimeUnit.SECONDS);
+                System.out.printf(&quot;ACK loan=%s partition=%d offset=%d%n&quot;,key,ack.partition(),ack.offset());
+            }
+        }System.out.println(&quot;PASS produced=&quot;+count+&quot; run=&quot;+run);
+    }
+    static void consume(String mode,int count,String group)throws Exception{
+        String topic=(mode.equals(&quot;bridge&quot;)||mode.equals(&quot;consume-enriched&quot;))?OUTPUT:INPUT;
+        String queue=env(&quot;MSK_SQS_URL&quot;,&quot;&quot;);
+        if(mode.equals(&quot;bridge&quot;)&amp;&amp;queue.isBlank())throw new IllegalArgumentException(&quot;Set MSK_SQS_URL for bridge&quot;);
+        try(var consumer=consumer(group,topic);
+            var publisher=mode.equals(&quot;enrich&quot;)?producer():null;
+            var sqs=mode.equals(&quot;bridge&quot;)?SqsClient.create():null){
+            int received=0;long deadline=System.nanoTime()+Duration.ofMinutes(2).toNanos();
+            while(received&lt;count &amp;&amp; System.nanoTime()&lt;deadline){
+                for(var record:consumer.poll(Duration.ofSeconds(1))){
+                    if(mode.equals(&quot;enrich&quot;)){
+                        var loan=JSON.readTree(record.value());
+                        if(!loan.isObject())throw new IllegalArgumentException(&quot;Expected loan object&quot;);
+                        ((com.fasterxml.jackson.databind.node.ObjectNode)loan).put(&quot;mockCreditScore&quot;,720);
+                        publisher.send(new ProducerRecord&lt;&gt;(OUTPUT,record.key(),JSON.writeValueAsString(loan))).get(65,TimeUnit.SECONDS);
+                    }else if(mode.equals(&quot;bridge&quot;)){
+                        sqs.sendMessage(r-&gt;r.queueUrl(queue).messageBody(record.value())); // Wait for SQS acceptance.
+                    }
+                    System.out.printf(&quot;%s key=%s partition=%d offset=%d value=%s%n&quot;,mode,record.key(),record.partition(),record.offset(),record.value());
+                    consumer.commitSync(); // max.poll.records=1: commit only after this record&#x27;s effect.
+                    received++;
+                }
+            }
+            if(received!=count)throw new IllegalStateException(&quot;Timed out: expected=&quot;+count+&quot; received=&quot;+received+&quot;; check group history and topic&quot;);
+            System.out.println(&quot;PASS &quot;+mode+&quot; count=&quot;+received+&quot; group=&quot;+group);
+        }
+    }
+    public static void main(String[] args)throws Exception{
+        if(args.length==0){System.out.println(&quot;Usage: init | produce [10] | consume|consume-enriched|enrich|bridge [10] [msk-learning-GROUP]&quot;);return;}
+        String mode=args[0];
+        if(!List.of(&quot;init&quot;,&quot;produce&quot;,&quot;consume&quot;,&quot;consume-enriched&quot;,&quot;enrich&quot;,&quot;bridge&quot;).contains(mode))throw new IllegalArgumentException(&quot;Unknown command &quot;+mode);
+        int count=args.length&gt;1?Integer.parseInt(args[1]):10;
+        if(count&lt;1||count&gt;10000)throw new IllegalArgumentException(&quot;Lab count must be 1..10000&quot;);
+        switch(mode){
+            case &quot;init&quot;-&gt;init();case &quot;produce&quot;-&gt;produce(count);
+            default-&gt;consume(mode,count,args.length&gt;2?args[2]:&quot;msk-learning-&quot;+mode);
+        }
+    }
+}
+</code></pre></details><h2>Explain and investigate</h2><p>Which changes if you increase consumer replicas from two to five with three topic partitions? Which changes if the topic has one hot key? Explain why replication factor and consumer count are different.</p><details><summary>What to record in your lab notebook</summary><ul><li>Account/region, resource IDs and chosen provisioning method.</li><li>Relevant configuration and why you chose it.</li><li>The command/test and the observed result, including failures.</li><li>Recovery action and how you checked the business invariants.</li><li>Known gaps and the next experiment; exclude secrets and task tokens.</li></ul></details><label class="complete"><input type="checkbox" data-complete="m03-msk-topics"> I performed this lab and can explain the exit criterion (self-reported).</label><h2>Official reference</h2><p><a href="https://docs.aws.amazon.com/msk/latest/developerguide/create-topic-console.html" target="_blank" rel="noopener">https://docs.aws.amazon.com/msk/latest/developerguide/create-topic-console.html</a></p><p class="small">External references need internet; the lesson content and source download do not.</p><div class="pager"><a href="m02-msk-client.html">← Previous lesson</a><a href="m04-msk-java.html">Next lesson →</a></div><footer>Course source revision: 2026-11-04. Console wording and supported service versions can change; official references are provided for verification. LocalStack evidence is distinct from AWS deployment evidence. No cloud resources are created by opening this file.</footer></main><script src="assets/course.js"></script></body></html>
